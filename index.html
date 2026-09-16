@@ -559,6 +559,7 @@
         let audioContext = null;
         let elapsedSincePipe = 0;
         let previousTime = 0;
+        let lastGapSize = null;
 
         function readBestScore() {
           try {
@@ -612,6 +613,7 @@
           level = 1;
           elapsedSincePipe = 0.65;
           previousTime = 0;
+          lastGapSize = null;
           finalScoreElement.textContent = "0";
           finalBestElement.textContent = String(bestScore);
           startOverlay.hidden = startPlaying;
@@ -672,13 +674,34 @@
           syncHud();
         }
 
+        function randomGapSize() {
+          const levelBase = Math.max(142, BASE_PIPE_GAP - (level - 1) * 6);
+          const minGap = Math.max(122, levelBase - 30);
+          const maxGap = Math.min(204, levelBase + 30);
+          let nextGap = minGap;
+
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            nextGap = Math.round(minGap + Math.random() * (maxGap - minGap));
+            if (lastGapSize === null || Math.abs(nextGap - lastGapSize) >= 14) break;
+          }
+
+          if (lastGapSize !== null && Math.abs(nextGap - lastGapSize) < 14) {
+            nextGap = Math.abs(lastGapSize - minGap) > Math.abs(lastGapSize - maxGap)
+              ? minGap
+              : maxGap;
+          }
+
+          lastGapSize = nextGap;
+          return nextGap;
+        }
+
         function addPipe() {
           const margin = 145;
           const available = HEIGHT - GROUND_HEIGHT - margin * 2;
           pipes.push({
             x: WIDTH + 24,
             gapY: margin + Math.random() * available,
-            gapSize: Math.max(136, BASE_PIPE_GAP - (level - 1) * 7),
+            gapSize: randomGapSize(),
             scored: false,
           });
         }
