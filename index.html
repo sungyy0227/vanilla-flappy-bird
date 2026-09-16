@@ -173,6 +173,75 @@
         color: var(--cream);
       }
 
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 27px 0 0;
+        padding: 15px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .stats div {
+        min-width: 0;
+      }
+
+      .stats dt {
+        margin-bottom: 4px;
+        color: rgba(255, 255, 255, 0.44);
+        font-family: "Courier New", monospace;
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+      }
+
+      .stats dd {
+        margin: 0;
+        font-family: "Courier New", monospace;
+        font-size: 1.1rem;
+        font-weight: 850;
+      }
+
+      .controls {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .control-button {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 10px 11px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.8rem;
+        font-weight: 750;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.04);
+        transition: 160ms ease;
+      }
+
+      .control-button:hover:not(:disabled) {
+        border-color: var(--cyan);
+        color: #fff;
+        background: rgba(112, 237, 240, 0.09);
+      }
+
+      .control-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
+      .control-button .icon {
+        width: 1rem;
+        color: var(--cyan);
+        font-family: "Courier New", monospace;
+        text-align: center;
+      }
+
       .game-wrap {
         position: relative;
         overflow: hidden;
@@ -256,6 +325,11 @@
         outline-offset: 3px;
       }
 
+      .control-button:focus-visible {
+        outline: 3px solid var(--yellow);
+        outline-offset: 2px;
+      }
+
       .footer {
         margin-top: 22px;
         padding-left: calc(42% + 16px);
@@ -278,6 +352,13 @@
           gap: 10px;
         }
 
+        .game-panel {
+          display: grid;
+          grid-template-columns: 1fr auto auto;
+          gap: 10px 14px;
+          align-items: end;
+        }
+
         .score-card {
           display: flex;
           align-items: baseline;
@@ -292,6 +373,43 @@
 
         .instruction {
           display: none;
+        }
+
+        .stats {
+          gap: 15px;
+          margin: 0;
+          padding: 0;
+          border: 0;
+          text-align: right;
+        }
+
+        .stats dt {
+          margin-bottom: 1px;
+          font-size: 0.56rem;
+        }
+
+        .stats dd {
+          font-size: 0.92rem;
+        }
+
+        .controls {
+          display: flex;
+          gap: 7px;
+          margin: 0;
+        }
+
+        .control-button {
+          width: 38px;
+          height: 38px;
+          justify-content: center;
+          padding: 0;
+          overflow: hidden;
+          font-size: 0;
+        }
+
+        .control-button .icon {
+          width: auto;
+          font-size: 0.9rem;
         }
 
         .game-wrap {
@@ -324,10 +442,30 @@
         </header>
 
         <div class="stage">
-          <aside>
+          <aside class="game-panel">
             <div class="score-card" aria-live="polite">
               <span class="score-label">Score</span>
               <strong id="score">00</strong>
+            </div>
+            <dl class="stats">
+              <div>
+                <dt>BEST</dt>
+                <dd id="bestScore">00</dd>
+              </div>
+              <div>
+                <dt>LEVEL</dt>
+                <dd id="level">1</dd>
+              </div>
+            </dl>
+            <div class="controls" aria-label="게임 설정">
+              <button class="control-button" id="pauseButton" type="button" disabled>
+                <span class="icon" aria-hidden="true">Ⅱ</span>
+                <span class="button-label">일시정지</span>
+              </button>
+              <button class="control-button" id="soundButton" type="button">
+                <span class="icon" aria-hidden="true">♪</span>
+                <span class="button-label">사운드 켬</span>
+              </button>
             </div>
             <p class="instruction">
               <strong>새를 날려</strong><br />파이프 사이를 통과하세요.<br />벽에 닿으면 게임이 끝납니다.
@@ -355,15 +493,24 @@
               <div class="dialog">
                 <span class="dialog-kicker">GAME OVER</span>
                 <h2><span id="finalScore">0</span>점</h2>
-                <p>조금만 더 멀리 날아볼까요?</p>
+                <p>최고 기록 <span id="finalBest">0</span>점</p>
                 <button class="primary-button" id="restartButton" type="button">다시 플레이</button>
+              </div>
+            </div>
+
+            <div class="overlay" id="pauseOverlay" hidden>
+              <div class="dialog">
+                <span class="dialog-kicker">PAUSED</span>
+                <h2>잠시 쉬는 중</h2>
+                <p>준비되면 다시 이어서 날아보세요</p>
+                <button class="primary-button" id="resumeButton" type="button">계속 플레이</button>
               </div>
             </div>
           </div>
         </div>
 
         <footer class="footer">
-          <strong>SPACE · CLICK · TAP</strong>
+          <strong>SPACE · CLICK · TAP / P · PAUSE</strong>
           <span>NO INSTALL REQUIRED</span>
         </footer>
       </section>
@@ -376,11 +523,18 @@
         const canvas = document.querySelector("#game");
         const context = canvas.getContext("2d");
         const scoreElement = document.querySelector("#score");
+        const bestScoreElement = document.querySelector("#bestScore");
+        const levelElement = document.querySelector("#level");
         const finalScoreElement = document.querySelector("#finalScore");
+        const finalBestElement = document.querySelector("#finalBest");
         const startOverlay = document.querySelector("#startOverlay");
         const gameOverOverlay = document.querySelector("#gameOverOverlay");
+        const pauseOverlay = document.querySelector("#pauseOverlay");
         const startButton = document.querySelector("#startButton");
         const restartButton = document.querySelector("#restartButton");
+        const resumeButton = document.querySelector("#resumeButton");
+        const pauseButton = document.querySelector("#pauseButton");
+        const soundButton = document.querySelector("#soundButton");
 
         const WIDTH = canvas.width;
         const HEIGHT = canvas.height;
@@ -389,9 +543,9 @@
         const BIRD_RADIUS = 16;
         const GRAVITY = 1500;
         const FLAP_SPEED = -515;
-        const PIPE_SPEED = 172;
+        const BASE_PIPE_SPEED = 172;
         const PIPE_WIDTH = 66;
-        const PIPE_GAP = 172;
+        const BASE_PIPE_GAP = 172;
         const PIPE_INTERVAL = 1.55;
 
         let phase = "ready";
@@ -399,8 +553,55 @@
         let velocity = 0;
         let pipes = [];
         let score = 0;
+        let bestScore = readBestScore();
+        let level = 1;
+        let soundEnabled = true;
+        let audioContext = null;
         let elapsedSincePipe = 0;
         let previousTime = 0;
+
+        function readBestScore() {
+          try {
+            const stored = Number.parseInt(localStorage.getItem("vanilla-flappy-best") || "0", 10);
+            return Number.isFinite(stored) && stored > 0 ? stored : 0;
+          } catch {
+            return 0;
+          }
+        }
+
+        function storeBestScore() {
+          try {
+            localStorage.setItem("vanilla-flappy-best", String(bestScore));
+          } catch {
+            // Storage is optional; gameplay continues when it is unavailable.
+          }
+        }
+
+        function playTone(frequency, duration = 0.08, type = "square") {
+          if (!soundEnabled) return;
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioContext ||= new AudioContextClass();
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+          gain.gain.setValueAtTime(0.055, audioContext.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function syncHud() {
+          scoreElement.textContent = String(score).padStart(2, "0");
+          bestScoreElement.textContent = String(bestScore).padStart(2, "0");
+          levelElement.textContent = String(level);
+          pauseButton.disabled = phase === "ready" || phase === "gameover";
+          pauseButton.querySelector(".icon").textContent = phase === "paused" ? "▶" : "Ⅱ";
+          pauseButton.querySelector(".button-label").textContent = phase === "paused" ? "계속" : "일시정지";
+        }
 
         function reset(startPlaying = false) {
           phase = startPlaying ? "playing" : "ready";
@@ -408,31 +609,67 @@
           velocity = 0;
           pipes = [];
           score = 0;
+          level = 1;
           elapsedSincePipe = 0.65;
           previousTime = 0;
-          scoreElement.textContent = "00";
           finalScoreElement.textContent = "0";
+          finalBestElement.textContent = String(bestScore);
           startOverlay.hidden = startPlaying;
           gameOverOverlay.hidden = true;
+          pauseOverlay.hidden = true;
+          syncHud();
         }
 
         function flap() {
           if (phase === "gameover") {
             reset(true);
+          } else if (phase === "paused") {
+            phase = "playing";
+            pauseOverlay.hidden = true;
+            previousTime = 0;
           } else if (phase === "ready") {
             phase = "playing";
             startOverlay.hidden = true;
+            syncHud();
           }
 
           if (phase === "playing") {
             velocity = FLAP_SPEED;
+            playTone(520, 0.07);
           }
+        }
+
+        function togglePause() {
+          if (phase === "playing") {
+            phase = "paused";
+            pauseOverlay.hidden = false;
+          } else if (phase === "paused") {
+            phase = "playing";
+            pauseOverlay.hidden = true;
+            previousTime = 0;
+          }
+          syncHud();
+        }
+
+        function toggleSound() {
+          soundEnabled = !soundEnabled;
+          soundButton.querySelector(".icon").textContent = soundEnabled ? "♪" : "×";
+          soundButton.querySelector(".button-label").textContent = soundEnabled ? "사운드 켬" : "사운드 끔";
+          soundButton.setAttribute("aria-pressed", String(!soundEnabled));
+          if (soundEnabled) playTone(660, 0.06, "sine");
         }
 
         function endGame() {
           phase = "gameover";
+          if (score > bestScore) {
+            bestScore = score;
+            storeBestScore();
+          }
           finalScoreElement.textContent = String(score);
+          finalBestElement.textContent = String(bestScore);
           gameOverOverlay.hidden = false;
+          playTone(145, 0.24, "sawtooth");
+          syncHud();
         }
 
         function addPipe() {
@@ -441,6 +678,7 @@
           pipes.push({
             x: WIDTH + 24,
             gapY: margin + Math.random() * available,
+            gapSize: Math.max(136, BASE_PIPE_GAP - (level - 1) * 7),
             scored: false,
           });
         }
@@ -458,11 +696,17 @@
           }
 
           for (const pipe of pipes) {
-            pipe.x -= PIPE_SPEED * delta;
+            pipe.x -= (BASE_PIPE_SPEED + (level - 1) * 12) * delta;
             if (!pipe.scored && pipe.x + PIPE_WIDTH < BIRD_X) {
               pipe.scored = true;
               score += 1;
-              scoreElement.textContent = String(score).padStart(2, "0");
+              level = Math.min(6, Math.floor(score / 5) + 1);
+              if (score > bestScore) {
+                bestScore = score;
+                storeBestScore();
+              }
+              playTone(880, 0.09, "sine");
+              syncHud();
             }
           }
 
@@ -476,8 +720,8 @@
               BIRD_X + BIRD_RADIUS > pipe.x - 7 &&
               BIRD_X - BIRD_RADIUS < pipe.x + PIPE_WIDTH + 7;
             const outsideGap =
-              birdTop < pipe.gapY - PIPE_GAP / 2 ||
-              birdBottom > pipe.gapY + PIPE_GAP / 2;
+              birdTop < pipe.gapY - pipe.gapSize / 2 ||
+              birdBottom > pipe.gapY + pipe.gapSize / 2;
             return overlapsX && outsideGap;
           });
 
@@ -497,8 +741,8 @@
         }
 
         function drawPipe(pipe) {
-          const topHeight = pipe.gapY - PIPE_GAP / 2;
-          const bottomY = pipe.gapY + PIPE_GAP / 2;
+          const topHeight = pipe.gapY - pipe.gapSize / 2;
+          const bottomY = pipe.gapY + pipe.gapSize / 2;
           const gradient = context.createLinearGradient(pipe.x, 0, pipe.x + PIPE_WIDTH, 0);
           gradient.addColorStop(0, "#36cf75");
           gradient.addColorStop(0.46, "#a8ff65");
@@ -607,13 +851,24 @@
           if (event.code === "Space" || event.code === "ArrowUp") {
             event.preventDefault();
             flap();
+          } else if (event.code === "KeyP" || event.code === "Escape") {
+            event.preventDefault();
+            togglePause();
           }
+        }
+
+        function handleVisibilityChange() {
+          if (document.hidden && phase === "playing") togglePause();
         }
 
         canvas.addEventListener("pointerdown", flap);
         startButton.addEventListener("click", flap);
         restartButton.addEventListener("click", flap);
+        resumeButton.addEventListener("click", togglePause);
+        pauseButton.addEventListener("click", togglePause);
+        soundButton.addEventListener("click", toggleSound);
         window.addEventListener("keydown", handleKey);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
 
         reset();
         requestAnimationFrame(loop);
